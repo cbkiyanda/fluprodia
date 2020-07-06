@@ -234,6 +234,12 @@ class FluidPropertyDiagram:
                 'x_scale': 'log',
                 'y_scale': 'linear'
             },
+            'Tv': {
+                'x_property': 'v',
+                'y_property': 'T',
+                'x_scale': 'linear',
+                'y_scale': 'linear'
+            },
             'Tlogv': {
                 'x_property': 'v',
                 'y_property': 'T',

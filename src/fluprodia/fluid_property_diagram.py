@@ -175,7 +175,7 @@ class FluidPropertyDiagram:
         self.state = CP.AbstractState('HEOS', self.fluid)
 
         self.converters = {}
-        self.converters['p'] = {
+        self.converters['P'] = {
             'Pa': 1, 'hPa': 1e2, 'mbar': 1e2, 'psi': 6894.7572931783,
             'bar': 1e5, 'MPa': 1e6}
         self.converters['T'] = {
@@ -186,7 +186,7 @@ class FluidPropertyDiagram:
         self.converters['Q'] = {'-': 1, '%': 0.01}
 
         self.units = {
-            'p': 'Pa',
+            'P': 'Pa',
             's': 'J/kgK',
             'h': 'J/kg',
             'v': 'm^3/kg',
@@ -195,7 +195,7 @@ class FluidPropertyDiagram:
         }
 
         self.properties = {
-            'p': 'pressure',
+            'P': 'pressure',
             'v': 'volume',
             'T': 'temperature',
             'h': 'enthalpy',
@@ -216,9 +216,9 @@ class FluidPropertyDiagram:
                 'x_scale': 'linear',
                 'y_scale': 'linear'
             },
-            'logph': {
+            'logPh': {
                 'x_property': 'h',
-                'y_property': 'p',
+                'y_property': 'P',
                 'x_scale': 'linear',
                 'y_scale': 'log'
             },
@@ -228,9 +228,15 @@ class FluidPropertyDiagram:
                 'x_scale': 'linear',
                 'y_scale': 'linear'
             },
-            'plogv': {
+            'Plogv': {
                 'x_property': 'v',
-                'y_property': 'p',
+                'y_property': 'P',
+                'x_scale': 'log',
+                'y_scale': 'linear'
+            },
+            'Tlogv': {
+                'x_property': 'v',
+                'y_property': 'T',
                 'x_scale': 'log',
                 'y_scale': 'linear'
             }
@@ -303,7 +309,7 @@ class FluidPropertyDiagram:
 
         Parameters
         ----------
-        p : ndarray
+        P : ndarray
             Isolines for pressure.
 
         T : ndarray
@@ -321,7 +327,7 @@ class FluidPropertyDiagram:
         v : ndarray
             Isolines for specific volume.
         """
-        keys = ['p', 'T', 'Q', 's', 'h', 'v']
+        keys = ['P', 'T', 'Q', 's', 'h', 'v']
         for key in kwargs:
             if key in keys:
                 obj = getattr(self, self.properties[key])
@@ -351,10 +357,10 @@ class FluidPropertyDiagram:
         self.s_max = self.state.smass()
         self.h_max = self.state.hmass()
         self.iterator = np.linspace(0, self.s_max, 100)
-        p = self.p_max
+        P = self.p_max
         while True:
             try:
-                self.state.update(CP.PT_INPUTS, p, self.T_trip)
+                self.state.update(CP.PT_INPUTS, P, self.T_trip)
                 break
             except ValueError:
                 p *= 0.999
@@ -480,6 +486,15 @@ class FluidPropertyDiagram:
         plt.tight_layout()
         self.fig.savefig(filename, **kwargs)
 
+    def show(self, filename='FluidPropertyDiagram.pdf', **kwargs):
+        self.ax.set_xlim([self.x_min, self.x_max])
+        self.ax.set_ylim([self.y_min, self.y_max])
+        self.ax.set_xlabel(self.x_label)
+        self.ax.set_ylabel(self.y_label)
+        self.ax.grid()
+        #plt.tight_layout()
+        plt.show()
+
     def draw_isoline_label(self, isoline, property, idx, x, y):
         """Draw a label for an isoline.
 
@@ -555,41 +570,41 @@ class FluidPropertyDiagram:
         """Calculate an isoline of constant pressure."""
         isolines = self.pressure['isolines']
 
-        for p in isolines.round(8):
-            self.pressure[p] = {'h': [], 'T': [], 'v': [], 's': [], 'p': []}
+        for P in isolines.round(8):
+            self.pressure[P] = {'h': [], 'T': [], 'v': [], 's': [], 'P': []}
             for val in self.iterator:
                 try:
-                    self.state.update(CP.PSmass_INPUTS, p, val)
-                    self.pressure[p]['h'] += [self.state.hmass()]
-                    self.pressure[p]['T'] += [self.state.T()]
-                    self.pressure[p]['v'] += [1 / self.state.rhomass()]
-                    self.pressure[p]['s'] += [val]
-                    self.pressure[p]['p'] += [p]
+                    self.state.update(CP.PSmass_INPUTS, P, val)
+                    self.pressure[P]['h'] += [self.state.hmass()]
+                    self.pressure[P]['T'] += [self.state.T()]
+                    self.pressure[P]['v'] += [1 / self.state.rhomass()]
+                    self.pressure[P]['s'] += [val]
+                    self.pressure[P]['P'] += [P]
                 except ValueError:
                     continue
 
-            self.pressure[p]['h'] = np.asarray(self.pressure[p]['h'])
-            self.pressure[p]['T'] = np.asarray(self.pressure[p]['T'])
-            self.pressure[p]['v'] = np.asarray(self.pressure[p]['v'])
-            self.pressure[p]['s'] = np.asarray(self.pressure[p]['s'])
-            self.pressure[p]['p'] = np.asarray(self.pressure[p]['p'])
+            self.pressure[P]['h'] = np.asarray(self.pressure[P]['h'])
+            self.pressure[P]['T'] = np.asarray(self.pressure[P]['T'])
+            self.pressure[P]['v'] = np.asarray(self.pressure[P]['v'])
+            self.pressure[P]['s'] = np.asarray(self.pressure[P]['s'])
+            self.pressure[P]['P'] = np.asarray(self.pressure[P]['P'])
 
-            if p <= self.p_crit:
+            if P <= self.p_crit:
                 for Q in [0, 1]:
-                    self.state.update(CP.PQ_INPUTS, p, Q)
+                    self.state.update(CP.PQ_INPUTS, P, Q)
                     s = self.state.smass()
 
-                    idx = np.searchsorted(self.pressure[p]['s'], s)
-                    self.pressure[p]['h'] = np.insert(
-                        self.pressure[p]['h'], idx, self.state.hmass())
-                    self.pressure[p]['T'] = np.insert(
-                        self.pressure[p]['T'], idx, self.state.T())
-                    self.pressure[p]['v'] = np.insert(
-                        self.pressure[p]['v'], idx, 1 / self.state.rhomass())
-                    self.pressure[p]['s'] = np.insert(
-                        self.pressure[p]['s'], idx, s)
-                    self.pressure[p]['p'] = np.insert(
-                        self.pressure[p]['p'], idx, s)
+                    idx = np.searchsorted(self.pressure[P]['s'], s)
+                    self.pressure[P]['h'] = np.insert(
+                        self.pressure[P]['h'], idx, self.state.hmass())
+                    self.pressure[P]['T'] = np.insert(
+                        self.pressure[P]['T'], idx, self.state.T())
+                    self.pressure[P]['v'] = np.insert(
+                        self.pressure[P]['v'], idx, 1 / self.state.rhomass())
+                    self.pressure[P]['s'] = np.insert(
+                        self.pressure[P]['s'], idx, s)
+                    self.pressure[P]['P'] = np.insert(
+                        self.pressure[P]['P'], idx, s)
 
     def isochor(self):
         """Calculate an isoline of constant specific volume."""
@@ -598,13 +613,13 @@ class FluidPropertyDiagram:
         iterator = np.geomspace(self.p_trip, self.p_max, 100)
 
         for v in isolines.round(8):
-            self.volume[v] = {'h': [], 'T': [], 'p': [], 's': [], 'v': []}
+            self.volume[v] = {'h': [], 'T': [], 'P': [], 's': [], 'v': []}
             for val in iterator:
                 try:
                     self.state.update(CP.DmassP_INPUTS, 1 / v, val)
                     self.volume[v]['h'] += [self.state.hmass()]
                     self.volume[v]['T'] += [self.state.T()]
-                    self.volume[v]['p'] += [val]
+                    self.volume[v]['P'] += [val]
                     self.volume[v]['s'] += [self.state.smass()]
                     self.volume[v]['v'] += [v]
                 except ValueError:
@@ -612,7 +627,7 @@ class FluidPropertyDiagram:
 
             self.volume[v]['h'] = np.asarray(self.volume[v]['h'])
             self.volume[v]['T'] = np.asarray(self.volume[v]['T'])
-            self.volume[v]['p'] = np.asarray(self.volume[v]['p'])
+            self.volume[v]['P'] = np.asarray(self.volume[v]['P'])
             self.volume[v]['s'] = np.asarray(self.volume[v]['s'])
             self.volume[v]['v'] = np.asarray(self.volume[v]['v'])
 
@@ -621,13 +636,13 @@ class FluidPropertyDiagram:
                     self.state.update(CP.DmassQ_INPUTS, 1 / v, Q)
                     val = self.state.p()
 
-                    idx = np.searchsorted(self.volume[v]['p'], val)
+                    idx = np.searchsorted(self.volume[v]['P'], val)
                     self.volume[v]['h'] = np.insert(
                         self.volume[v]['h'], idx, self.state.hmass())
                     self.volume[v]['T'] = np.insert(
                         self.volume[v]['T'], idx, self.state.T())
-                    self.volume[v]['p'] = np.insert(
-                        self.volume[v]['p'], idx, val)
+                    self.volume[v]['P'] = np.insert(
+                        self.volume[v]['P'], idx, val)
                     self.volume[v]['s'] = np.insert(
                         self.volume[v]['s'], idx, self.state.smass())
                     self.volume[v]['v'] = np.insert(
@@ -645,20 +660,20 @@ class FluidPropertyDiagram:
 
         for Q in isolines.round(8):
             self.quality[Q] = {
-                'h': [], 'T': [], 'p': [], 's': [], 'v': []}
+                'h': [], 'T': [], 'P': [], 's': [], 'v': []}
             for val in iterator:
                 try:
                     self.state.update(CP.QT_INPUTS, Q, val)
                     self.quality[Q]['T'] += [val]
                     self.quality[Q]['h'] += [self.state.hmass()]
-                    self.quality[Q]['p'] += [self.state.p()]
+                    self.quality[Q]['P'] += [self.state.p()]
                     self.quality[Q]['v'] += [1 / self.state.rhomass()]
                     self.quality[Q]['s'] += [self.state.smass()]
                 except ValueError:
                     continue
 
             self.quality[Q]['h'] = np.asarray(self.quality[Q]['h'])
-            self.quality[Q]['p'] = np.asarray(self.quality[Q]['p'])
+            self.quality[Q]['P'] = np.asarray(self.quality[Q]['P'])
             self.quality[Q]['v'] = np.asarray(self.quality[Q]['v'])
             self.quality[Q]['s'] = np.asarray(self.quality[Q]['s'])
             self.quality[Q]['T'] = np.asarray(self.quality[Q]['T'])
@@ -671,12 +686,12 @@ class FluidPropertyDiagram:
 
         for h in isolines.round(8):
             self.enthalpy[h] = {
-                'h': [], 'T': [], 'p': [], 's': [], 'v': []}
+                'h': [], 'T': [], 'P': [], 's': [], 'v': []}
             for val in iterator:
                 try:
                     self.state.update(CP.HmassP_INPUTS, h, val)
                     self.enthalpy[h]['T'] += [self.state.T()]
-                    self.enthalpy[h]['p'] += [self.state.p()]
+                    self.enthalpy[h]['P'] += [self.state.p()]
                     self.enthalpy[h]['v'] += [1 / self.state.rhomass()]
                     self.enthalpy[h]['s'] += [self.state.smass()]
                     self.enthalpy[h]['h'] += [h]
@@ -684,7 +699,7 @@ class FluidPropertyDiagram:
                     continue
 
             self.enthalpy[h]['T'] = np.asarray(self.enthalpy[h]['T'])
-            self.enthalpy[h]['p'] = np.asarray(self.enthalpy[h]['p'])
+            self.enthalpy[h]['P'] = np.asarray(self.enthalpy[h]['P'])
             self.enthalpy[h]['v'] = np.asarray(self.enthalpy[h]['v'])
             self.enthalpy[h]['s'] = np.asarray(self.enthalpy[h]['s'])
             self.enthalpy[h]['h'] = np.asarray(self.enthalpy[h]['h'])
@@ -697,12 +712,12 @@ class FluidPropertyDiagram:
 
         for T in isolines.round(8):
             self.temperature[T] = {
-                'h': [], 'T': [], 'p': [], 's': [], 'v': []}
+                'h': [], 'T': [], 'P': [], 's': [], 'v': []}
             for val in iterator:
                 try:
                     self.state.update(CP.PT_INPUTS, val, T)
                     self.temperature[T]['T'] += [T]
-                    self.temperature[T]['p'] += [val]
+                    self.temperature[T]['P'] += [val]
                     self.temperature[T]['v'] += [1 / self.state.rhomass()]
                     self.temperature[T]['s'] += [self.state.smass()]
                     self.temperature[T]['h'] += [self.state.hmass()]
@@ -710,7 +725,7 @@ class FluidPropertyDiagram:
                     continue
 
             self.temperature[T]['T'] = np.asarray(self.temperature[T]['T'])
-            self.temperature[T]['p'] = np.asarray(self.temperature[T]['p'])
+            self.temperature[T]['P'] = np.asarray(self.temperature[T]['P'])
             self.temperature[T]['v'] = np.asarray(self.temperature[T]['v'])
             self.temperature[T]['s'] = np.asarray(self.temperature[T]['s'])
             self.temperature[T]['h'] = np.asarray(self.temperature[T]['h'])
@@ -719,15 +734,15 @@ class FluidPropertyDiagram:
                 for Q in np.linspace(0, 1, 41):
                     try:
                         self.state.update(CP.QT_INPUTS, Q, T)
-                        p = self.state.p()
-                        idx = np.searchsorted(self.temperature[T]['p'], p)
+                        P = self.state.p()
+                        idx = np.searchsorted(self.temperature[T]['P'], P)
 
                         self.temperature[T]['h'] = np.insert(
                             self.temperature[T]['h'], idx, self.state.hmass())
                         self.temperature[T]['T'] = np.insert(
                             self.temperature[T]['T'], idx, T)
-                        self.temperature[T]['p'] = np.insert(
-                            self.temperature[T]['p'], idx, p)
+                        self.temperature[T]['P'] = np.insert(
+                            self.temperature[T]['P'], idx, P)
                         self.temperature[T]['s'] = np.insert(
                             self.temperature[T]['s'], idx, self.state.smass())
                         self.temperature[T]['v'] = np.insert(
@@ -744,12 +759,12 @@ class FluidPropertyDiagram:
 
         for s in isolines.round(8):
             self.entropy[s] = {
-                'h': [], 'T': [], 'p': [], 's': [], 'v': []}
+                'h': [], 'T': [], 'P': [], 's': [], 'v': []}
             for val in iterator:
                 try:
                     self.state.update(CP.PSmass_INPUTS, val, s)
                     self.entropy[s]['T'] += [self.state.T()]
-                    self.entropy[s]['p'] += [val]
+                    self.entropy[s]['P'] += [val]
                     self.entropy[s]['v'] += [1 / self.state.rhomass()]
                     self.entropy[s]['s'] += [s]
                     self.entropy[s]['h'] += [self.state.hmass()]
@@ -757,7 +772,7 @@ class FluidPropertyDiagram:
                     continue
 
             self.entropy[s]['T'] = np.asarray(self.entropy[s]['T'])
-            self.entropy[s]['p'] = np.asarray(self.entropy[s]['p'])
+            self.entropy[s]['P'] = np.asarray(self.entropy[s]['P'])
             self.entropy[s]['v'] = np.asarray(self.entropy[s]['v'])
             self.entropy[s]['s'] = np.asarray(self.entropy[s]['s'])
             self.entropy[s]['h'] = np.asarray(self.entropy[s]['h'])
